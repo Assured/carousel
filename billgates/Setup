@@ -1,3 +1,4 @@
 #!/bin/bash
 
-sudo apt install --yes python3-pip python3-numpy python3-matplotlib python3-pyqt5
+sudo apt install --yes python3-pip python3-pygame python3-opengl
+sudo pip3 install pyopengl

@@ -1,73 +1,148 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 
-# Fixing random state for reproducibility
-np.random.seed(19680801)
+import pygame
+from pygame.locals import *
+
+from OpenGL.GL import *
+from OpenGL.GLU import *
+
+verticies = (
+( 1, -1, -1), # 0
+( 1,  1, -1), # 1
+(-1,  1, -1), # 2
+(-1, -1, -1), # 3
+( 1, -1,  1), # 4
+( 1,  1,  1), # 5
+(-1, -1,  1), # 6
+(-1,  1,  1), # 7
+)
+
+textureCoordinates = ((0, 0), (0, 1), (1, 1), (1, 0))
+
+surfaces = (
+(0,1,2,3),
+(3,2,7,6),
+(6,7,5,4),
+(4,5,1,0),
+(1,5,7,2),
+(4,0,3,6),
+)
+
+normals = [
+( 0,  0, -1),  # surface 0
+(-1,  0,  0),  # surface 1
+( 0,  0,  1),  # surface 2
+( 1,  0,  0),  # surface 3
+( 0,  1,  0),  # surface 4
+( 0, -1,  0)   # surface 5
+    ]
+
+colors = (
+(1,1,1),
+(0,1,0),
+(0,0,1),
+(0,1,0),
+(0,0,1),
+(1,0,1),
+(0,1,0),
+(1,0,1),
+(0,1,0),
+(0,0,1),
+)
+
+edges = (
+(0,1),
+(0,3),
+(0,4),
+(2,1),
+(2,3),
+(2,7),
+(6,3),
+(6,4),
+(6,7),
+(5,1),
+(5,4),
+(5,7),
+)
 
 
-# Create new Figure and an Axes which fills it.
-fig = plt.figure(figsize=(7, 7))
-img = plt.imread('uglyfish.png')
-ax = fig.add_axes([0, 0, 1, 1], frameon=False)
-ax.set_xlim(0, 1), ax.set_xticks([])
-ax.set_ylim(0, 1), ax.set_yticks([])
+def Cube():
+    glColor3f(1, 1, 1)
+    glBegin(GL_QUADS)
+    for i_surface, surface in enumerate(surfaces):
+        x = 0
+        glNormal3fv(normals[i_surface])
+        for i_vertex, vertex in enumerate(surface):
+            x+=1
+            #
+            glTexCoord2fv(textureCoordinates[i_vertex])
+            glVertex3fv(verticies[vertex])
+    glEnd()
+
+    glColor3fv(colors[0])
+    glBegin(GL_LINES)
+    for edge in edges:
+        for vertex in edge:
+            glVertex3fv(verticies[vertex])
+    glEnd()
 
 
-# Create rain data
-n_drops = 50
-rain_drops = np.zeros(n_drops, dtype=[('position', float, (2,)),
-                                      ('size',     float),
-                                      ('growth',   float),
-                                      ('color',    float, (4,))])
+def main():
+    global surfaces
+    pygame.mixer.init()
+    pygame.mixer.music.load('crash.mp3')
+    pygame.mixer.music.play()
+   
+    pygame.display.set_caption('BILL PWNS')
 
-# Initialize the raindrops in random positions and with
-# random growth rates.
-rain_drops['position'] = np.random.uniform(0, 1, (n_drops, 2))
-rain_drops['growth'] = np.random.uniform(50, 200, n_drops)
+    pygame.init()
+    display = (800, 600)
+    pygame.display.set_mode(display, DOUBLEBUF|OPENGL)
+    clock = pygame.time.Clock()
 
-# Construct the scatter which we will update during animation
-# as the raindrops develop.
-scat = ax.scatter(rain_drops['position'][:, 0], rain_drops['position'][:, 1],
-                  s=rain_drops['size'], lw=0.5, edgecolors=rain_drops['color'],
-                  facecolors='pink')
+    glMatrixMode(GL_PROJECTION)
+    gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
 
+    glMatrixMode(GL_MODELVIEW)
+    glTranslatef(0, 0, -5)
 
-def update(frame_number):
+    #glLight(GL_LIGHT0, GL_POSITION,  (0, 0, 1, 0)) # directional light from the front
+    glLight(GL_LIGHT0, GL_POSITION,  (5, 5, 5, 1)) # point light from the left, top, front
+    glLightfv(GL_LIGHT0, GL_AMBIENT, (0, 0, 0, 1))
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, (1, 1, 1, 1))
 
-    colors = ['red','green','blue','pink','yellow']
+    glEnable(GL_DEPTH_TEST)
 
-    # Get an index which we can use to re-spawn the oldest raindrop.
-    current_index = frame_number % n_drops
+    image = pygame.image.load('bill.jpeg')
+    datas = pygame.image.tostring(image, 'RGBA')
+    texID = glGenTextures(1)
+    glBindTexture(GL_TEXTURE_2D, texID)
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.get_width(), image.get_height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, datas)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
 
-    # Make all colors more transparent as time progresses.
-    rain_drops['color'][:, 3] -= 1.0/len(rain_drops)
-    rain_drops['color'][:, 3] = np.clip(rain_drops['color'][:, 3], 0, 1)
+    glEnable(GL_TEXTURE_2D)
 
-    # Make all circles bigger.
-    rain_drops['size'] += rain_drops['growth']
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
 
-    # Pick a new position for oldest rain drop, resetting its size,
-    # color and growth factor.
-    rain_drops['position'][current_index] = np.random.uniform(0, 1, 2)
-    rain_drops['size'][current_index] = 5
-    rain_drops['color'][current_index] = (0, 0, 0, 1)
-    rain_drops['growth'][current_index] = np.random.uniform(50, 200)
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
 
-    # Update the scatter collection, with the new colors, sizes and positions.
-    scat.set_edgecolors(rain_drops['color'])
-    scat.set_sizes(rain_drops['size'])
-    scat.set_offsets(rain_drops['position'])
+        glEnable(GL_LIGHTING)
+        glEnable(GL_LIGHT0)
+        glEnable(GL_COLOR_MATERIAL)
+        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE )
 
+        glRotatef(1, 3, 1, 1)
+        Cube()
 
-# Construct the animation, using the update function as the animation director.
-animation = FuncAnimation(fig, update,interval=10)
-plt.imshow(img,zorder=0,extent=[0.1, 1.0, 0.1, 1.0])
+        glDisable(GL_LIGHT0)
+        glDisable(GL_LIGHTING)
+        glDisable(GL_COLOR_MATERIAL)
 
-plt.text(0.5,
-                 0.67,
-                          "BULLE OCH KAKA ÄR GOTT",
-                                   transform=plt.gca().transAxes)
+        pygame.display.flip()
+        clock.tick(60)
 
-plt.show(block=False)
-plt.pause(60)
+main()
