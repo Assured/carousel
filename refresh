@@ -3,8 +3,6 @@
 ROOT=$(cd $(dirname "$0") && pwd)
 cd ${ROOT} || exit 1
 
-git pull
-
 for DEMO in ${ROOT}/*/; do
   [ -d "${DEMO}" ] || continue
 
@@ -12,7 +10,7 @@ for DEMO in ${ROOT}/*/; do
 
   (
     cd "${DEMO}" &&
-    ./Setup
+    timeout --kill-after=60 45 ./Setup
   )
 done
 
